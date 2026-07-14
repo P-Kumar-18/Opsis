@@ -76,5 +76,5 @@ def load_ao3(csv_path: str):
 
 
 if __name__ == "__main__":
-    _path = Path(__file__).parent.parent / "data" / "raw" / "ao3_data.csv"
+    _path = Path(__file__).parent.parent.parent / "data" / "raw" / "ao3_data.csv"
     load_ao3(_path)
