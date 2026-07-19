@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Opsis — Discover your next favorite fanfiction{% endblock %}</title>
+  <meta name="description" content="{% block description %}Opsis finds fanfiction similar to the one you just finished — not by tags, by feel.{% endblock %}">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/static/style.css">
+  <noscript>
+    <style>
+      .reveal, .reveal-group > *, .thread-divider, .hero-demo,
+      .demo-source-card, .demo-rec-card { opacity: 1 !important; transform: none !important; }
+      .segment.active { background: var(--accent); color: #17110C; }
+    </style>
+  </noscript>
+</head>
+<body>
+
+  <div class="noise-overlay" aria-hidden="true"></div>
+
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="/">
+        <span class="brand-mark" aria-hidden="true">Ω</span>
+        <span class="brand-name">Opsis</span>
+      </a>
+      <nav class="site-nav" aria-label="Primary">
+        <a href="/" class="nav-link {% block nav_home %}{% endblock %}">Home</a>
+        <a href="/recommend" class="nav-link {% block nav_recommend %}{% endblock %}">Recommend</a>
+        <a href="/about" class="nav-link {% block nav_about %}{% endblock %}">About</a>
+      </nav>
+      <a href="/recommend" class="btn btn-small btn-accent header-cta">Find a fic</a>
+      <button class="nav-toggle" aria-label="Open menu" aria-expanded="false" id="navToggle">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+    <nav class="mobile-nav" id="mobileNav" aria-label="Mobile">
+      <a href="/">Home</a>
+      <a href="/recommend">Recommend</a>
+      <a href="/about">About</a>
+    </nav>
+  </header>
+
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <span class="brand-mark" aria-hidden="true">Ω</span>
+        <span>Opsis</span>
+      </div>
+      <p class="footer-note">Built on top of AO3's own metadata. Not affiliated with the Organization for Transformative Works.</p>
+      <div class="footer-links">
+        <a href="/about">About</a>
+        <a href="https://archiveofourown.org" target="_blank" rel="noopener">AO3</a>
+        <a href="/recommend">Recommend</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/static/app.js"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

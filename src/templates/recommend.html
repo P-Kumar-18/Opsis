@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+{% block nav_recommend %}active{% endblock %}
+{% block title %}Recommend — Opsis{% endblock %}
+
+{% block content %}
+
+<section class="recommend-hero">
+  <div class="recommend-hero-inner">
+    <p class="eyebrow">Start here</p>
+    <h1 class="recommend-title">Give Opsis a fic to work from</h1>
+    <p class="recommend-sub">Any of the three below works — pick whichever you have on hand.</p>
+  </div>
+</section>
+
+<section class="input-section">
+  <div class="input-card reveal">
+
+    <div class="segmented" role="tablist" aria-label="Input method">
+      <div class="segment-indicator" aria-hidden="true"></div>
+      <button class="segment active" role="tab" aria-selected="true" data-target="panel-id" type="button">Work ID</button>
+      <button class="segment" role="tab" aria-selected="false" data-target="panel-url" type="button">URL</button>
+      <button class="segment" role="tab" aria-selected="false" data-target="panel-title" type="button">Title + Author</button>
+    </div>
+
+    <form id="form-id" class="input-form" data-panel="panel-id" novalidate>
+      <div class="input-panel">
+        <label for="fic_id">AO3 work ID</label>
+        <input type="text" id="fic_id" name="fic_id" placeholder="e.g. 41841690" inputmode="numeric" pattern="[0-9]*" autocomplete="off">
+        <p class="input-hint">The number at the end of the fic's AO3 address.</p>
+      </div>
+      <button type="submit" class="btn btn-accent btn-large btn-full">
+        Find similar fics
+      </button>
+    </form>
+
+    <form id="form-url" class="input-form" data-panel="panel-url" hidden novalidate>
+      <div class="input-panel">
+        <label for="url">AO3 link</label>
+        <input type="url" id="url" name="url" placeholder="https://archiveofourown.org/works/41841690" autocomplete="off">
+        <p class="input-hint">Paste the address straight from your browser tab.</p>
+      </div>
+      <button type="submit" class="btn btn-accent btn-large btn-full">
+        Find similar fics
+      </button>
+    </form>
+
+    <form id="form-title" class="input-form" data-panel="panel-title" hidden novalidate>
+      <div class="input-panel">
+        <label for="name">Fic title</label>
+        <input type="text" id="name" name="name" placeholder="Viridian" autocomplete="off">
+        <label for="author">Author</label>
+        <input type="text" id="author" name="author" placeholder="Clouds" autocomplete="off">
+        <p class="input-hint">Enter the fic's title and exact AO3 username.</p>
+      </div>
+      <button type="submit" class="btn btn-accent btn-large btn-full">
+        Find similar fics
+      </button>
+    </form>
+  </div>
+</section>
+
+<section class="loading-section" id="loadingSection" hidden aria-live="polite">
+  <div class="loading-inner">
+    <div class="loading-spinner" aria-hidden="true"></div>
+    <p class="loading-message" id="loadingMessage">Searching the archive…</p>
+    <div class="loading-dots" id="loadingDots" aria-hidden="true">
+      <span class="loading-dot active"></span>
+      <span class="loading-dot"></span>
+      <span class="loading-dot"></span>
+      <span class="loading-dot"></span>
+      <span class="loading-dot"></span>
+    </div>
+  </div>
+</section>
+
+<section class="results-section" id="resultsSection" {% if not source %}hidden{% endif %}>
+
+  <div class="source-block" id="sourceBlock">
+    {% if source %}
+    <div class="source-eyebrow-row">
+      <p class="eyebrow">Because you liked this</p>
+      {% if source.newly_indexed %}
+      <span class="badge-new">Freshly indexed — just fetched from AO3</span>
+      {% endif %}
+    </div>
+    <div class="source-card">
+      <div class="source-main">
+        <h2 class="source-title">{{ source.name }}</h2>
+        <p class="source-author">by {{ source.author }}</p>
+        <p class="source-summary">{{ source.summary }}</p>
+        <div class="source-tags">
+          {% for fandom in source.fandoms %}<span class="tag">{{ fandom }}</span>{% endfor %}
+          {% for rel in source.relationships %}<span class="tag tag-rel">{{ rel }}</span>{% endfor %}
+        </div>
+      </div>
+      <div class="source-stats">
+        <div class="stat"><span class="stat-value" data-count="{{ source.hits }}">0</span><span class="stat-label">Hits</span></div>
+        <div class="stat"><span class="stat-value" data-count="{{ source.kudos }}">0</span><span class="stat-label">Kudos</span></div>
+        <div class="stat"><span class="stat-value" data-count="{{ source.bookmarks }}">0</span><span class="stat-label">Bookmarks</span></div>
+        <div class="stat"><span class="stat-value">{{ source.chapters }}</span><span class="stat-label">Chapters</span></div>
+        <div class="stat"><span class="stat-value" data-count="{{ source.words }}">0</span><span class="stat-label">Words</span></div>
+      </div>
+      <a href="{{ source.url }}" target="_blank" rel="noopener" class="btn btn-ghost btn-small source-link">Read on AO3 ↗</a>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="thread-divider" aria-hidden="true">
+    <svg viewBox="0 0 1000 24" preserveAspectRatio="none">
+      <line x1="0" y1="12" x2="1000" y2="12" stroke-dasharray="4 8"/>
+    </svg>
+  </div>
+
+  <div class="recs-block">
+    <p class="eyebrow">Closest in feel</p>
+    <div class="recs-grid" id="recsGrid">
+      {% if recommendations %}
+        {% for rec in recommendations %}
+        {% set tier = 'high' if rec.score >= 0.85 else ('mid' if rec.score >= 0.6 else 'low') %}
+        <article class="rec-card" data-tier="{{ tier }}">
+          <div class="rec-card-head">
+            <div>
+              <h3 class="rec-title">{{ rec.name }}</h3>
+              <p class="rec-author">by {{ rec.author }}</p>
+            </div>
+            <div class="score-meter" aria-label="{{ rec.score | round | int }} percent match">
+              <svg viewBox="0 0 40 40" class="score-ring">
+                <circle cx="20" cy="20" r="17" class="score-ring-bg"/>
+                <circle cx="20" cy="20" r="17" class="score-ring-fg" style="--pct: {{ rec.score / 100 }}"/>
+              </svg>
+              <span class="score-value">
+                <span class="count-num" data-count="{{ rec.score | round | int }}">0</span><span class="score-unit">%</span>
+              </span>
+            </div>
+          </div>
+
+          <div class="rec-tags">
+            {% for fandom in rec.fandoms %}<span class="tag">{{ fandom }}</span>{% endfor %}
+          </div>
+          {% if rec.relationships %}
+          <p class="rec-relationships">{{ rec.relationships | join(' · ') }}</p>
+          {% endif %}
+
+          <div class="rec-meta">
+            <span>{{ "{:,}".format(rec.words) }} words</span>
+            <span class="dot">·</span>
+            <span>{{ rec.chapters }} ch</span>
+            <span class="dot">·</span>
+            <span class="status-badge status-{{ rec.status }}">{{ rec.status | replace('_', ' ') | replace('-', ' ') | title }}</span>
+          </div>
+
+          <div class="rec-footer">
+            <div class="rec-signals">
+              <span>{{ "{:,}".format(rec.hits) }} hits</span>
+              <span>{{ "{:,}".format(rec.kudos) }} kudos</span>
+              <span>{{ "{:,}".format(rec.bookmarks) }} bookmarks</span>
+            </div>
+            <a href="{{ rec.url }}" target="_blank" rel="noopener" class="rec-link">Read ↗</a>
+          </div>
+        </article>
+        {% endfor %}
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+<section class="empty-state" id="emptyState" {% if source %}hidden{% endif %}>
+  <div class="empty-inner">
+    <span class="empty-mark" aria-hidden="true">Ω</span>
+    <p>Once you enter a fic above, its recommendations will take shape here.</p>
+  </div>
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  window.__opsisFicData = {{ (fic_lookup or {}) | tojson }};
+</script>
+{% endblock %}

@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block nav_about %}active{% endblock %}
+{% block title %}About — Opsis{% endblock %}
+
+{% block content %}
+
+<section class="about-hero">
+  <div class="about-hero-inner">
+    <p class="eyebrow">About the project</p>
+    <h1 class="about-title">A recommendation engine that reads the fic, not the tags</h1>
+    <p class="about-sub">
+      Opsis is the alpha of a larger project called Siagnos — a personal fanfiction taste
+      engine. Where Siagnos will eventually model an individual reader's taste from their
+      own reading history, Opsis answers a narrower, immediately useful question:
+      given one fic, what else is close to it?
+    </p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section-inner narrow reveal">
+    <p class="eyebrow">Why this exists</p>
+    <h2 class="section-title">Tag search finds fics. It doesn't understand them.</h2>
+    <p class="section-body">
+      AO3's own search is built on tags, and tags are inconsistent by nature — two readers
+      tag the same fic differently, and plenty of relevant fics are undertagged or missed
+      entirely. Kudos and bookmark counts measure popularity, not fit. A fic with ten thousand
+      kudos can still miss what made you like the one you just read. Opsis compares each fic's
+      summary directly, checks it against fandom and relationship overlap, and weighs in how
+      well it's already resonated with readers — so what surfaces is close in substance, not
+      just matching in label.
+    </p>
+  </div>
+</section>
+
+<section class="section section-alt">
+  <div class="section-inner narrow reveal">
+    <p class="eyebrow">How a recommendation gets made</p>
+    <h2 class="section-title">From a fic you name to a shelf of fics that fit</h2>
+
+    <ol class="arch-steps reveal-group">
+      <li class="arch-step">
+        <span class="arch-num">01</span>
+        <div>
+          <h3>Resolve</h3>
+          <p>You give a work ID, a link, or a title and author. Opsis checks whether that fic is already known.</p>
+        </div>
+      </li>
+      <li class="arch-step">
+        <span class="arch-num">02</span>
+        <div>
+          <h3>Fetch, if needed</h3>
+          <p>If the fic isn't in the archive yet, Opsis retrieves its metadata directly from AO3 and stores it.</p>
+        </div>
+      </li>
+      <li class="arch-step">
+        <span class="arch-num">03</span>
+        <div>
+          <h3>Represent</h3>
+          <p>The fic's summary and metadata are turned into a numeric representation — an embedding — that captures its content, not just its labels.</p>
+        </div>
+      </li>
+      <li class="arch-step">
+        <span class="arch-num">04</span>
+        <div>
+          <h3>Compare</h3>
+          <p>That representation is measured against every other fic in the archive using cosine similarity, a way of scoring how close two fics sit in content.</p>
+        </div>
+      </li>
+      <li class="arch-step">
+        <span class="arch-num">05</span>
+        <div>
+          <h3>Recommend</h3>
+          <p>The closest matches come back as a ranked shelf, each with its own similarity score.</p>
+        </div>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section-inner narrow reveal">
+    <p class="eyebrow">Stack</p>
+    <h2 class="section-title">Built plainly, on purpose</h2>
+    <p class="section-body">
+      No framework does the thinking here — the pipeline is hand-built so every step is
+      understood, not borrowed.
+    </p>
+    <div class="stack-grid reveal-group">
+      <div class="stack-item"><span class="stack-label">API</span><span class="stack-value">FastAPI</span></div>
+      <div class="stack-item"><span class="stack-label">Templating</span><span class="stack-value">Jinja2</span></div>
+      <div class="stack-item"><span class="stack-label">Database</span><span class="stack-value">Neon (PostgreSQL)</span></div>
+      <div class="stack-item"><span class="stack-label">Embeddings</span><span class="stack-value">Sentence Transformers</span></div>
+      <div class="stack-item"><span class="stack-label">Similarity</span><span class="stack-value">Cosine similarity</span></div>
+      <div class="stack-item"><span class="stack-label">Deployment</span><span class="stack-value">Render</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="section section-alt">
+  <div class="section-inner narrow reveal">
+    <p class="eyebrow">On copyright and consent</p>
+    <h2 class="section-title">The fic stays on AO3. Opsis only points to it.</h2>
+    <p class="section-body">
+      Opsis stores metadata — titles, summaries, tags, and stats — not fic text, and every
+      recommendation links back to the original work on AO3. Automated collection was
+      discussed with the Organization for Transformative Works' Communications Committee
+      in advance, with scope limited to metadata and rate limits respected throughout.
+      Opsis is a discovery layer on top of AO3, not a copy of it.
+    </p>
+  </div>
+</section>
+
+<section class="section closing-section">
+  <div class="section-inner narrow reveal">
+    <p class="eyebrow">What's next</p>
+    <h2 class="section-title">Opsis is the alpha. Siagnos is the destination.</h2>
+    <p class="section-body">
+      Opsis answers "what's similar to this fic." Siagnos, the larger project this grew out
+      of, goes further — learning an individual reader's own taste from what they actually
+      finish, drop, or return to, rather than comparing fics to each other in the abstract.
+    </p>
+    <a href="/recommend" class="btn btn-accent btn-large">Try Opsis</a>
+  </div>
+</section>
+
+{% endblock %}

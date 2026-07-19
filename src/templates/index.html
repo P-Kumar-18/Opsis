@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block nav_home %}active{% endblock %}
+
+{% block content %}
+
+<section class="hero">
+  <div class="hero-inner">
+    <p class="eyebrow">A recommendation engine for one question</p>
+    <h1 class="hero-title">
+      You just finished a fic.<br>
+      <em>What do you read next?</em>
+    </h1>
+    <p class="hero-sub">
+      Opsis compares each fic's summary against its fandom and relationship tags,
+      weighted by how it's already resonated with readers — then surfaces what
+      actually sits closest. Not just what shares a tag.
+    </p>
+    <div class="hero-actions">
+      <a href="/recommend" class="btn btn-accent btn-large">Try it with a fic</a>
+      <a href="#how" class="btn btn-ghost btn-large">See how it works</a>
+    </div>
+  </div>
+
+  <div class="hero-demo" aria-hidden="true">
+    <div class="demo-source-card reveal">
+      <span class="demo-label">Because you read</span>
+      <h3 class="demo-title">Viridian</h3>
+      <p class="demo-author">by Clouds</p>
+      <div class="demo-tags">
+        <span class="tag">My Hero Academia</span>
+        <span class="tag">Midoriya Izuku/Todoroki Shoto</span>
+      </div>
+    </div>
+
+    <div class="demo-thread" aria-hidden="true">
+      <svg viewBox="0 0 200 40" preserveAspectRatio="none">
+        <line x1="0" y1="20" x2="200" y2="20" stroke-dasharray="4 6"/>
+      </svg>
+    </div>
+
+    <div class="demo-recs reveal-group">
+      <div class="demo-rec-card">
+        <div class="demo-rec-top">
+          <h4>Static and Slow Light</h4>
+          <span class="demo-score">92<span class="demo-score-unit">%</span></span>
+        </div>
+        <p class="demo-rec-author">by ninefold</p>
+        <div class="demo-rec-meta">
+          <span>112k words</span><span class="dot">·</span><span>Completed</span>
+        </div>
+      </div>
+      <div class="demo-rec-card">
+        <div class="demo-rec-top">
+          <h4>Half a Decade of Silence</h4>
+          <span class="demo-score">88<span class="demo-score-unit">%</span></span>
+        </div>
+        <p class="demo-rec-author">by aviantongue</p>
+        <div class="demo-rec-meta">
+          <span>67k words</span><span class="dot">·</span><span>WIP</span>
+        </div>
+      </div>
+      <div class="demo-rec-card">
+        <div class="demo-rec-top">
+          <h4>Little Anchor</h4>
+          <span class="demo-score">85<span class="demo-score-unit">%</span></span>
+        </div>
+        <p class="demo-rec-author">by Clouds</p>
+        <div class="demo-rec-meta">
+          <span>34k words</span><span class="dot">·</span><span>Completed</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="how">
+  <div class="section-inner reveal">
+    <p class="eyebrow">The idea</p>
+    <h2 class="section-title">Tags tell you what a fic is tagged.<br>They don't tell you what it reads like.</h2>
+    <p class="section-body">
+      Two fics can share every tag on AO3 and still turn out to have little in common —
+      the tag only tells you the ship, not what the fic does with it. Opsis looks past the
+      tag list itself: it compares summaries directly, checks fandom and relationship overlap,
+      and factors in how well a fic has already landed with readers. Then it hands you the
+      ones that actually sit closest to what you just read.
+    </p>
+  </div>
+</section>
+
+<section class="section section-alt">
+  <div class="section-inner">
+    <p class="eyebrow">How to use it</p>
+    <h2 class="section-title">Give it a fic. Any way you have it on hand.</h2>
+    <div class="feature-grid reveal-group">
+      <div class="feature-card">
+        <span class="feature-index">Work ID</span>
+        <h3>Just the number</h3>
+        <p>Paste the digits from the AO3 URL. If it's new to Opsis, it'll fetch it first.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-index">URL</span>
+        <h3>The full link</h3>
+        <p>Drop in the address bar link straight from your browser tab.</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-index">Title + Author</span>
+        <h3>What you remember</h3>
+        <p>Only remember the name and who wrote it? That's enough to start from.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section cta-section">
+  <div class="section-inner cta-inner reveal">
+    <h2 class="section-title">Discover your next favorite fanfiction.</h2>
+    <p class="section-body">One fic in. A shelf of fics that actually match it, out.</p>
+    <a href="/recommend" class="btn btn-accent btn-large">Get a recommendation</a>
+  </div>
+</section>
+
+{% endblock %}
