@@ -150,3 +150,86 @@ ADD CONSTRAINT unique_character UNIQUE (characters);
 
 ALTER TABLE freeform_value
 ADD CONSTRAINT unique_freeform UNIQUE (freeform);
+
+-- ============================================================================
+--- 6. EMBEDDINGS TABLE
+-- ============================================================================
+
+CREATE TABLE embeddings (
+    fic_id BIGINT PRIMARY KEY,
+    model_name TEXT NOT NULL,
+    embedding_dimension INTEGER NOT NULL,
+    payload BYTEA NOT NULL,
+
+    CONSTRAINT fk_embeddings_fic
+        FOREIGN KEY (fic_id)
+        REFERENCES fics(fic_id)
+        ON DELETE CASCADE
+);
+
+----------------------------------------------------------------------------
+-- 7. ON DELETE CASCADE FOR JOIN TABLES
+----------------------------------------------------------------------------
+
+BEGIN;
+
+ALTER TABLE warning_join
+DROP CONSTRAINT warning_join_fic_id_fkey;
+
+ALTER TABLE warning_join
+ADD CONSTRAINT warning_join_fic_id_fkey
+FOREIGN KEY (fic_id)
+REFERENCES fics(fic_id)
+ON DELETE CASCADE;
+
+
+ALTER TABLE categories_join
+DROP CONSTRAINT categories_join_fic_id_fkey;
+
+ALTER TABLE categories_join
+ADD CONSTRAINT categories_join_fic_id_fkey
+FOREIGN KEY (fic_id)
+REFERENCES fics(fic_id)
+ON DELETE CASCADE;
+
+
+ALTER TABLE fandom_join
+DROP CONSTRAINT fandom_join_fic_id_fkey;
+
+ALTER TABLE fandom_join
+ADD CONSTRAINT fandom_join_fic_id_fkey
+FOREIGN KEY (fic_id)
+REFERENCES fics(fic_id)
+ON DELETE CASCADE;
+
+
+ALTER TABLE relationship_join
+DROP CONSTRAINT relationship_join_fic_id_fkey;
+
+ALTER TABLE relationship_join
+ADD CONSTRAINT relationship_join_fic_id_fkey
+FOREIGN KEY (fic_id)
+REFERENCES fics(fic_id)
+ON DELETE CASCADE;
+
+
+ALTER TABLE characters_join
+DROP CONSTRAINT characters_join_fic_id_fkey;
+
+ALTER TABLE characters_join
+ADD CONSTRAINT characters_join_fic_id_fkey
+FOREIGN KEY (fic_id)
+REFERENCES fics(fic_id)
+ON DELETE CASCADE;
+
+
+ALTER TABLE freeform_join
+DROP CONSTRAINT freeform_join_fic_id_fkey;
+
+ALTER TABLE freeform_join
+ADD CONSTRAINT freeform_join_fic_id_fkey
+FOREIGN KEY (fic_id)
+REFERENCES fics(fic_id)
+ON DELETE CASCADE;
+
+COMMIT;
