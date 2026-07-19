@@ -38,8 +38,12 @@ def clean_text(value):
 
 
 def parse_list_literal(value):
+    if isinstance(value, list):
+        return [str(item).strip() for item in value if str(item).strip()]
+
     if pd.isna(value):
         return []
+
     text = str(value).strip()
     if text in {'', '[]', 'nan', 'None'}:
         return []

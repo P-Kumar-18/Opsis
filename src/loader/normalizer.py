@@ -20,12 +20,6 @@ def build_value_table(frame, column, value_column):
     return value_table
 
 def build_normalized_tables(df):
-    df['fic_id'] = (
-        df['url']
-        .str.extract(r'/works/(\d+)')
-        .astype('Int64')
-    )
-
     duplicates_removed = (
         df['fic_id']
         .duplicated()
@@ -42,6 +36,13 @@ def build_normalized_tables(df):
     df_core = df_core.rename(columns={
         'title': 'name'
     })
+
+    df_core["summary"] = (
+        df["summary"]
+        .fillna("")
+        .astype(str)
+        .tolist()
+    )
 
     value_tables = {}
 
@@ -76,7 +77,10 @@ def build_join_tables(df, lookup_maps):
                 })
 
         join_tables[key] = (
-            pd.DataFrame(rows)
+            pd.DataFrame(
+                rows,
+                columns=['fic_id', id_column]
+            )
             .drop_duplicates()
             .sort_values(['fic_id', id_column])
             .reset_index(drop=True)

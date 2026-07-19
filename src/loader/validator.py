@@ -7,7 +7,7 @@ def validate_row(row, list_columns):
         raise ValidationError("Missing fic_id")
 
     required_columns = [
-        "url", "name", "hits", "bookmarks", "kudos",
+        "url", "title", "hits", "bookmarks", "kudos",
         "current_chapters", "words", "language", "rating"
     ]
 

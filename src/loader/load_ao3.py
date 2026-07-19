@@ -2,15 +2,28 @@ from src.loader.cleaner import clean_dataframe
 from src.loader.normalizer import build_normalized_tables, build_join_tables
 from src.loader.validator import validate, filter_valid_rows
 from src.loader.database import get_connection, fetch_lookup_maps
-from src.loader.inserter import insert_fics, insert_value_tables,insert_join_tables
+from src.loader.inserter import insert_fics, insert_value_tables, insert_join_tables
 from src.loader.config import LIST_COLUMNS
 
 import pandas as pd
 from pathlib import Path
 
 
-def load_ao3(csv_path: str):
-    df_raw = pd.read_csv(csv_path)
+def load_csv(csv_path: str):
+    return pd.read_csv(csv_path)
+
+
+def load_df(df: pd.DataFrame):
+    return df
+
+
+def load_ao3(csv_path: str | None = None, df: pd.DataFrame | None = None) -> None:
+    if df is not None:
+        df_raw = load_df(df)
+    elif csv_path is not None:
+        df_raw = load_csv(csv_path)
+    else:
+        raise ValueError("Either csv_path or df must be provided")
     print(f"Loaded {len(df_raw)} rows from {csv_path}")
 
     # Cleaning
@@ -94,7 +107,10 @@ def load_ao3(csv_path: str):
 
     except Exception:
         connection.rollback()
-        raise
+        raise Exception(
+            "An error occurred during the database operations. "
+            "All changes have been rolled back."
+        )
 
     finally:
         connection.close()

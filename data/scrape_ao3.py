@@ -16,9 +16,18 @@ SESSION = cloudscraper.create_scraper(
     }
 )
 
-def fetch(url):
+
+def fetch(url, mode = "bulk"):
     # Retry the request a few times in case AO3 is temporarily unavailable or Cloudflare blocks us.
     MAX_RETRIES = 5
+
+    if mode == "bulk":
+        sleep_retry = 60
+        sleep_error = 300
+    else:
+        MAX_RETRIES = 3
+        sleep_retry = 3
+        sleep_error = 3
 
     for attempt in range(1, MAX_RETRIES + 1):
         try:
@@ -32,25 +41,37 @@ def fetch(url):
                 return response
 
             if response.status_code == 525:
+                if mode == "bulk":
+                    print(
+                        f"Cloudflare 525 "
+                        f"(attempt {attempt}/{MAX_RETRIES})"
+                    )
+                sleep(sleep_error)
+                if mode == "live":
+                    sleep_retry += 2
+                    sleep_error += 2
+                continue
+            
+            if mode == "bulk":
                 print(
-                    f"Cloudflare 525 "
+                    f"HTTP {response.status_code} "
                     f"(attempt {attempt}/{MAX_RETRIES})"
                 )
-                sleep(300)
-                continue
-
-            print(
-                f"HTTP {response.status_code} "
-                f"(attempt {attempt}/{MAX_RETRIES})"
-            )
-            sleep(60)
+            sleep(sleep_retry)
+            if mode == "live":
+                sleep_retry += 2
+                sleep_error += 2
 
         except Exception as e:
-            print(
-                f"Request failed "
-                f"(attempt {attempt}/{MAX_RETRIES}): {e}"
-            )
-            sleep(300)
+            if mode == "bulk":
+                print(
+                    f"Request failed "
+                    f"(attempt {attempt}/{MAX_RETRIES}): {e}"
+                )
+            sleep(sleep_error)
+            if mode == "live":
+                sleep_retry += 2
+                sleep_error += 2
     
     return None
 
@@ -80,16 +101,25 @@ def save_url(url: str) -> None:
         file.write(f"{url}\n")
 
 
-def get_url(url, works, is_resumed=False) -> list[str]:
+def get_url(url, works = 20, is_resumed = False, mode = "bulk") -> list[str]:
     # AO3 shows about 20 works per page, so we walk each result page and extract work links.
     works = int(works)
     pages = ceil(works/20)
     page_no = 1
     iteration = 1
     url_list = []
+    MAX_RETRIES = 10
+    
+    if mode == "bulk":
+        sleep_retry = 45
+        sleep_error = 60
+    else:
+        MAX_RETRIES = 2
+        sleep_retry = 5
+        sleep_error = 5      
     
     base_url = url.split('?')[0]
-    
+
     if is_resumed:
         parent_dir = get_path()
         file_path_url = os.path.join(parent_dir, "data", "raw", "url_list.txt")
@@ -103,59 +133,99 @@ def get_url(url, works, is_resumed=False) -> list[str]:
         print(f"Resuming from page: {page_no}\n")
 
     while page_no != pages + 1:
-        current_url = f"{base_url}?page={page_no}"
+        current_url = (
+            f"{base_url}?page={page_no}"
+            if mode == "bulk"
+            else url
+        )
         
-        response = fetch(current_url)
+        while MAX_RETRIES >= iteration:
+            response = fetch(current_url, mode=mode)
 
-        if response is None:
-            print(f"Failed to fetch page {page_no}, pausing for a bit.")
-            sleep(60)
-            iteration += 1
+            if response is None:
+                if mode == "bulk":
+                    print(f"Failed to fetch page {page_no}, pausing for a bit.")
+                sleep(sleep_error)
+                if mode == "live":
+                    sleep_retry += 2
+                    sleep_error += 2
+                iteration += 1
+                continue
+
+            soup = BeautifulSoup(response.text, "html.parser")
+            
+            # Only capture work links; skip user profile links and anything AO3 did not render yet.
+            a_tags = soup.select("h4.heading a:not([rel])")
+                    
+            if len(a_tags) == 0:
+                if mode == "bulk":
+                    print(f"URL Page did not load, pausing for a bit.")
+                sleep(sleep_retry)
+                if mode == "live":
+                    sleep_retry += 2
+                    sleep_error += 2
+                iteration += 1
+                continue
+            
+            for a_tag in a_tags:
+                if a_tag:
+                    if a_tag["href"][:7] == "/users/" or a_tag["href"][:7] == "/groups/" or a_tag["href"][:7] == "/tags/":
+                        continue
+                    
+                    # Convert AO3-relative hrefs into full URLs before saving them.
+                    scraped_url = f"https://archiveofourown.org{a_tag.get('href')}?view_adult=true"
+                    url_list.append(scraped_url)
+                    if mode == "bulk":
+                        save_url(url=scraped_url)
+
+            print(f"Fetched URLs from Page: {page_no}\nIteration: {iteration}\n")
+            iteration = 1
+            page_no += 1
+            if mode == "bulk":
+                sleep()
+
+            break
+        
+        if MAX_RETRIES <= iteration:
+            if mode == "bulk":
+                print(f"Failed to fetch page {page_no} after {MAX_RETRIES} attempts, skipping.")
+            page_no += 1
+            iteration = 1
             continue
 
-        soup = BeautifulSoup(response.text, "html.parser")
-        
-        # Only capture work links; skip user profile links and anything AO3 did not render yet.
-        a_tags = soup.select("h4.heading a:not([rel])")
-                
-        if len(a_tags) == 0:
-            print(f"URL Page did not load, pausing for a bit.")
-            sleep(45)
-            iteration += 1
-            continue
-        
-        for a_tag in a_tags:
-            if a_tag:
-                if a_tag["href"][:7] == "/users/":
-                    continue
-                
-                # Convert AO3-relative hrefs into full URLs before saving them.
-                scraped_url = f"https://archiveofourown.org{a_tag.get('href')}?view_adult=true"
-                url_list.append(scraped_url)
-                save_url(url=scraped_url)
-
-        print(f"Fetched URLs from Page: {page_no}\nIteration: {iteration}\n")
-        iteration = 1
-        page_no += 1
-        sleep()
-        
     return url_list
+        
 
-
-def extract(url: str, story: int) -> dict:
+def extract(url: str, story: int | None = None, mode = "bulk") -> tuple[dict | None, int]:
     MAX_RETRIES = 10
     iteration = 1
+
+    if mode == "bulk":
+        sleep_fetch = 60
+        sleep_title = 45
+    else:
+        MAX_RETRIES = 2
+        sleep_fetch = 5
+        sleep_title = 5
+        if "?view_adult=true" not in url:
+            url += "?view_adult=true"
+
     while iteration <= MAX_RETRIES:
-        response = fetch(url)
+        response = fetch(url, mode=mode)
 
         if response is None:
-            print(f"Failed to fetch fanfiction, pausing for a bit.")
+            if mode == "bulk":
+                print(f"Failed to fetch fanfiction, pausing for a bit.")
             iteration = MAX_RETRIES + 1
-            sleep(60)
+            sleep(sleep_fetch)
+            if mode == "live":
+                sleep_title += 2
+                sleep_fetch += 2
             continue
 
         if response.status_code == 404:
-            print(f"Fanfiction not found, skipping.")
+            if mode == "bulk":
+                print(f"Fanfiction not found, skipping.")
             iteration = MAX_RETRIES + 1
             continue
 
@@ -166,21 +236,26 @@ def extract(url: str, story: int) -> dict:
         title = title_element.text.strip() if title_element else None
         
         if title is None:
-            print(f"Fanfiction did not load, pausing for a bit.")
+            if mode == "bulk":
+                print(f"Fanfiction did not load, pausing for a bit.")
             iteration += 1
-            sleep(45)
+            sleep(sleep_title)
+            if mode == "live":
+                sleep_title += 2
+                sleep_fetch += 2
             continue
         else:
             break
     if iteration > MAX_RETRIES:
-        print(f"Failed to load fanfiction after {MAX_RETRIES} attempts, skipping.")
-        response_text = response.text if response else ""
+        if story is not None:
+            print(f"Failed to load fanfiction after {MAX_RETRIES} attempts, skipping.")
+            response_text = response.text if response else ""
 
-        save_failed_url(
-            url=url,
-            story=story,
-            response=response_text
-        )
+            save_failed_url(
+                url=url,
+                story=story,
+                response=response_text
+            )
         return None, iteration
     else:
         # The remaining fields come from AO3's metadata sidebar and tag lists.
