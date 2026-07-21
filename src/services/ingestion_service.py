@@ -1,7 +1,12 @@
+print("Starting ingestion_service.py", flush=True)
 from data.scrape_ao3 import get_url, extract
+print("scrape_ao3 imported", flush=True)
 from src.loader.load_ao3 import load_ao3
+print("load_ao3 imported", flush=True)
 from src.recommender.embedding_generator import EmbeddingGenerator
+print("embedding_generator imported", flush=True)
 from src.recommender.postgres_store import PostgresEmbeddingStore 
+print("postgres_store imported", flush=True)
 
 import pandas as pd
 
