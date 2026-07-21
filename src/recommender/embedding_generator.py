@@ -1,4 +1,3 @@
-from sentence_transformers import SentenceTransformer
 import numpy as np
 
 from src.recommender.embedding_store import EmbeddingStore
@@ -10,6 +9,9 @@ class EmbeddingGenerator:
         self,
         model_name: str = "sentence-transformers/all-MiniLM-L6-v2",
     ):
+        from sentence_transformers import SentenceTransformer
+
+        print(f"Initializing embedding model: {model_name}", flush=True)
         self.model_name = model_name
         self.model = SentenceTransformer(model_name)
 
