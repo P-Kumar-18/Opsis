@@ -9,16 +9,26 @@ class EmbeddingGenerator:
         self,
         model_name: str = "sentence-transformers/all-MiniLM-L6-v2",
     ):
+        print("DEBUG: About to import SentenceTransformer", flush=True)
+
         from sentence_transformers import SentenceTransformer
 
-        print(f"Initializing embedding model: {model_name}", flush=True)
+        print("DEBUG: SentenceTransformer imported", flush=True)
+
         self.model_name = model_name
+
+        print("DEBUG: About to load embedding model", flush=True)
+
         self.model = SentenceTransformer(model_name)
+
+        print("DEBUG: Embedding model loaded", flush=True)
 
     def generate_embeddings(
         self,
         summaries: list[str],
     ) -> np.ndarray:
+
+        print("DEBUG: Starting embedding generation", flush=True)
 
         embeddings = self.model.encode(
             summaries,
@@ -26,6 +36,8 @@ class EmbeddingGenerator:
             show_progress_bar=True,
         )
 
+        print("DEBUG: Embedding generation completed", flush=True)
+        
         return embeddings.astype(
             np.float32
         )
