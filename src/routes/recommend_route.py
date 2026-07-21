@@ -1,15 +1,35 @@
+print("Starting recommend_route", flush=True)
+
 from fastapi import APIRouter, Request
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import JSONResponse
 
+print("FastAPI imports done", flush=True)
+
 from src.loader.database import get_connection
-from src.recommender.postgres_store import PostgresEmbeddingStore 
+print("database imported", flush=True)
+
+from src.recommender.postgres_store import PostgresEmbeddingStore
+print("postgres_store imported", flush=True)
+
 from src.recommender.recommend import Recommender
+print("recommender imported", flush=True)
+
 from src.services.fic_resolver import FicResolver
+print("fic_resolver imported", flush=True)
+
 from src.services.ingestion_service import IngestionService
+print("ingestion_service imported", flush=True)
+
 from src.services.normalize import normalize_row
+print("normalize imported", flush=True)
+
 from src.services.format_author import format_author
+print("format_author imported", flush=True)
+
 from . import templates as loc
+
+print("recommend_route imports complete", flush=True)
 
 
 router = APIRouter()
