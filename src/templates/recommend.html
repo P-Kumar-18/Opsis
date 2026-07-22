@@ -118,6 +118,10 @@
         {% for rec in recommendations %}
         {% set tier = 'high' if rec.score >= 0.85 else ('mid' if rec.score >= 0.6 else 'low') %}
         <article class="rec-card" data-tier="{{ tier }}">
+          <div class="rec-explanation" aria-hidden="true">
+            <span class="rec-explanation-label">Why this match</span>
+            <p>{{ rec.explanation or "Explanation unavailable." }}</p>
+          </div>
           <div class="rec-card-head">
             <div>
               <h3 class="rec-title">{{ rec.name }}</h3>

@@ -445,6 +445,10 @@ function renderRecCard(rec) {
 
   return `
     <article class="rec-card" data-tier="${tier}">
+      <div class="rec-explanation" aria-hidden="true">
+        <span class="rec-explanation-label">Why this match</span>
+        <p>${escapeHtml(rec.explanation || "Explanation unavailable.")}</p>
+      </div>
       <div class="rec-card-head">
         <div>
           <h3 class="rec-title">${escapeHtml(rec.name)}</h3>

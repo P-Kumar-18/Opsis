@@ -1056,6 +1056,60 @@ button { font-family: inherit; }
 }
 
 /* ============================================
+   Recommendation AI explanation
+   ============================================ */
+
+.rec-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.rec-explanation {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+
+  padding: 1.75rem;
+
+  background: var(--bg-elevated);
+
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(8px);
+
+  transition:
+    opacity 0.25s var(--ease),
+    transform 0.25s var(--ease),
+    visibility 0.25s;
+}
+
+.rec-card:hover .rec-explanation {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.rec-explanation-label {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent-strong);
+  margin-bottom: 0.75rem;
+}
+
+.rec-explanation p {
+  font-family: var(--font-body);
+  font-size: 0.92rem;
+  line-height: 1.65;
+  color: var(--text-muted);
+}
+
+/* ============================================
    About page
    ============================================ */
 .about-hero {

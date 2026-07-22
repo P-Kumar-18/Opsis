@@ -1,4 +1,5 @@
 from src.loader.database import get_connection
+from src.services.metadata import populate_metadata, populate_metadata_many
 
 
 class FicResolver:
@@ -6,6 +7,48 @@ class FicResolver:
 
     def __init__(self, input: dict):
         self.input = input
+
+    @staticmethod
+    def resolve_many_from_ids(fic_ids: list[int]) -> list[dict]:
+        """Fetch multiple fic records and their metadata in batch."""
+
+        if not fic_ids:
+            return []
+
+        fic_ids = [int(fic_id) for fic_id in fic_ids]
+
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT *
+                    FROM fics
+                    WHERE fic_id = ANY(%s)
+                    """,
+                    (fic_ids,),
+                )
+
+                results = cur.fetchall()
+
+                if not results:
+                    return []
+
+                columns = [desc[0] for desc in cur.description]
+
+                fics_by_id = {
+                    row[columns.index("fic_id")]: dict(zip(columns, row))
+                    for row in results
+                }
+
+                # Restore the recommendation order because SQL does not
+                # guarantee the same ordering as fic_ids.
+                fics = [
+                    fics_by_id[fic_id]
+                    for fic_id in fic_ids
+                    if fic_id in fics_by_id
+                ]
+
+                return populate_metadata_many(cur, fics)
 
     def resolve_from_id(self):
         """Fetch fic record directly using primary key ID."""
@@ -17,7 +60,8 @@ class FicResolver:
                 result = cur.fetchone()
 
                 if result:
-                    return dict(zip([desc[0] for desc in cur.description], result))
+                    fic = dict(zip([desc[0] for desc in cur.description], result))
+                    return populate_metadata(cur, fic)
 
                 return {"error": f"No fic found with id: {fic_id}"}
 
@@ -31,7 +75,8 @@ class FicResolver:
                 result = cur.fetchone()
 
                 if result:
-                    return dict(zip([desc[0] for desc in cur.description], result))
+                    fic = dict(zip([desc[0] for desc in cur.description], result))
+                    return populate_metadata(cur, fic)
 
                 return {"error": f"No fic found with url: {url}"}
 
@@ -46,7 +91,8 @@ class FicResolver:
                 result = cur.fetchone()
 
                 if result:
-                    return dict(zip([desc[0] for desc in cur.description], result))
+                    fic = dict(zip([desc[0] for desc in cur.description], result))
+                    return populate_metadata(cur, fic)
 
                 return {"error": "No fic found with exact name and author"}
 

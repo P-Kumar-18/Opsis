@@ -1,3 +1,5 @@
+from time import perf_counter
+
 import numpy as np
 
 from src.recommender.ranker import compute_final_score
@@ -90,19 +92,53 @@ class Recommender:
         return metadata
 
     def recommend(
-        self,
-        fic_id: int,
-        top_k: int = 10,
-        retrieval_size: int = 100,
-    ) -> list[tuple[int, float]]:
+    self,
+    fic_id: int,
+    top_k: int = 10,
+    retrieval_size: int = 100,
+) -> list[tuple[int, float]]:
         """Generate top-K recommended works using cosine embedding similarity and hybrid weighted ranking."""
+
+        # Fetch source embedding
+        stage_start = perf_counter()
+
         query_embedding = self.embedding_store.get_embedding(fic_id)
+
+        print(
+            f"TIMING |   Get source embedding: "
+            f"{perf_counter() - stage_start:.2f}s",
+            flush=True,
+        )
+
+        # Fetch candidate embeddings
+        stage_start = perf_counter()
+
         candidate_ids, candidate_embeddings = self.embedding_store.get_all_embeddings()
 
-        similarities = compute_cosine_similarity(query_embedding, candidate_embeddings)
+        print(
+            f"TIMING |   Get all embeddings: "
+            f"{perf_counter() - stage_start:.2f}s",
+            flush=True,
+        )
+
+        # Compute vector similarities
+        stage_start = perf_counter()
+
+        similarities = compute_cosine_similarity(
+            query_embedding,
+            candidate_embeddings,
+        )
         sorted_indices = np.argsort(similarities)[::-1]
 
+        print(
+            f"TIMING |   Cosine similarity: "
+            f"{perf_counter() - stage_start:.2f}s",
+            flush=True,
+        )
+
         # Stage 1: Vector Similarity Retrieval
+        stage_start = perf_counter()
+
         retrieved_candidate_ids = []
 
         for index in sorted_indices:
@@ -116,20 +152,59 @@ class Recommender:
             if len(retrieved_candidate_ids) >= retrieval_size:
                 break
 
+        print(
+            f"TIMING |   Candidate retrieval: "
+            f"{perf_counter() - stage_start:.2f}s",
+            flush=True,
+        )
+
         # Stage 2: Metadata Fetching
-        metadata = self._get_batch_metadata([fic_id] + retrieved_candidate_ids)
+        stage_start = perf_counter()
+
+        metadata = self._get_batch_metadata(
+            [fic_id] + retrieved_candidate_ids
+        )
         query_metadata = metadata[fic_id]
+
+        print(
+            f"TIMING |   Batch metadata: "
+            f"{perf_counter() - stage_start:.2f}s",
+            flush=True,
+        )
+
+        stage_start = perf_counter()
+
         max_kudos, max_bookmarks = self._get_max_popularity()
 
+        print(
+            f"TIMING |   Max popularity: "
+            f"{perf_counter() - stage_start:.2f}s",
+            flush=True,
+        )
+
         # Stage 3: Hybrid Score Ranking
+        stage_start = perf_counter()
+
         recommendations = []
-        similarity_lookup = {int(candidate_ids[index]): similarities[index] for index in sorted_indices}
+
+        similarity_lookup = {
+            int(candidate_ids[index]): similarities[index]
+            for index in sorted_indices
+        }
 
         for candidate_id in retrieved_candidate_ids:
             candidate_metadata = metadata[candidate_id]
 
-            normalized_kudos = min_max_normalize(candidate_metadata["kudos"], 0, max_kudos)
-            normalized_bookmarks = min_max_normalize(candidate_metadata["bookmarks"], 0, max_bookmarks)
+            normalized_kudos = min_max_normalize(
+                candidate_metadata["kudos"],
+                0,
+                max_kudos,
+            )
+            normalized_bookmarks = min_max_normalize(
+                candidate_metadata["bookmarks"],
+                0,
+                max_bookmarks,
+            )
 
             score = compute_final_score(
                 embedding_similarity=similarity_lookup[candidate_id],
@@ -143,6 +218,15 @@ class Recommender:
 
             recommendations.append((candidate_id, score))
 
-        recommendations.sort(key=lambda x: x[1], reverse=True)
+        recommendations.sort(
+            key=lambda x: x[1],
+            reverse=True,
+        )
+
+        print(
+            f"TIMING |   Hybrid ranking: "
+            f"{perf_counter() - stage_start:.2f}s",
+            flush=True,
+        )
 
         return recommendations[:top_k]

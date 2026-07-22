@@ -9,6 +9,9 @@ from src.recommender.embedding_store import EmbeddingStore
 class PostgresEmbeddingStore(EmbeddingStore):
     """PostgreSQL-backed storage implementation for vector embeddings using bytea payload storage."""
 
+    _cached_fic_ids: np.ndarray | None = None
+    _cached_embeddings: np.ndarray | None = None
+
     def _get_store_metadata(self, connection) -> tuple[str, int] | None:
         """Fetch model metadata from existing embeddings in the database."""
         query = """
@@ -68,6 +71,10 @@ class PostgresEmbeddingStore(EmbeddingStore):
 
     def get_all_embeddings(self) -> tuple[np.ndarray, np.ndarray]:
         """Retrieve all stored fic IDs and vector embeddings matrix from database."""
+
+        if self.__class__._cached_fic_ids is not None and self.__class__._cached_embeddings is not None:
+            return self.__class__._cached_fic_ids, self.__class__._cached_embeddings
+        
         query = """
         SELECT
             fic_id,
@@ -87,7 +94,16 @@ class PostgresEmbeddingStore(EmbeddingStore):
         fic_ids = np.array([row[0] for row in rows], dtype=np.int64)
         embeddings = np.stack([np.asarray(pickle.loads(bytes(row[1])), dtype=np.float32) for row in rows])
 
+        self.__class__._cached_fic_ids = fic_ids
+        self.__class__._cached_embeddings = embeddings
+
         return fic_ids, embeddings
+    
+    @classmethod
+    def _invalidate_cache(cls) -> None:
+        """Invalidate the in-memory embedding cache after database writes."""
+        cls._cached_fic_ids = None
+        cls._cached_embeddings = None
 
     def save_embedding(self, fic_id: int, embedding: np.ndarray, model_name: str) -> None:
         """Upsert a single fic embedding vector into PostgreSQL database."""
@@ -122,6 +138,8 @@ class PostgresEmbeddingStore(EmbeddingStore):
                 )
 
             connection.commit()
+        
+        self._invalidate_cache()
 
     def save_embeddings(self, fic_ids: np.ndarray, embeddings: np.ndarray, model_name: str) -> None:
         """Batch upsert multiple fic embedding vectors into PostgreSQL database."""
