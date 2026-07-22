@@ -1,24 +1,18 @@
 import numpy as np
 
-from src.recommender.similarity import compute_cosine_similarity, min_max_normalize
-
 from src.recommender.ranker import compute_final_score
+from src.recommender.similarity import compute_cosine_similarity, min_max_normalize
 
 
 class Recommender:
+    """Core recommendation pipeline executing candidate retrieval, metadata enrichment, and weighted scoring."""
 
-    def __init__(
-        self,
-        embedding_store,
-        connection,
-    ):
+    def __init__(self, embedding_store, connection):
         self.embedding_store = embedding_store
         self.connection = connection
 
-    def _get_max_popularity(
-        self,
-    ) -> tuple[int, int]:
-
+    def _get_max_popularity(self) -> tuple[int, int]:
+        """Retrieve global maximum kudos and bookmark counts from database for normalization."""
         query = """
         SELECT
             MAX(kudos),
@@ -28,14 +22,10 @@ class Recommender:
 
         with self.connection.cursor() as cur:
             cur.execute(query)
-
             return cur.fetchone()
 
-    def _get_batch_metadata(
-        self,
-        fic_ids: list[int],
-    ) -> dict[int, dict]:
-
+    def _get_batch_metadata(self, fic_ids: list[int]) -> dict[int, dict]:
+        """Fetch popularity metrics, fandoms, and relationship tags for a batch of fic IDs."""
         metadata = {
             fic_id: {
                 "fandoms": set(),
@@ -46,10 +36,7 @@ class Recommender:
             for fic_id in fic_ids
         }
 
-        # ----------------------------
-        # Popularity
-        # ----------------------------
-
+        # Fetch engagement metrics (kudos, bookmarks)
         popularity_query = """
         SELECT
             fic_id,
@@ -60,22 +47,13 @@ class Recommender:
         """
 
         with self.connection.cursor() as cur:
-
-            cur.execute(
-                popularity_query,
-                (fic_ids,)
-            )
+            cur.execute(popularity_query, (fic_ids,))
 
             for fic_id, kudos, bookmarks in cur.fetchall():
+                metadata[fic_id]["kudos"] = kudos or 0
+                metadata[fic_id]["bookmarks"] = bookmarks or 0
 
-                metadata[fic_id]["kudos"] = (kudos or 0)
-
-                metadata[fic_id]["bookmarks"] = (bookmarks or 0)
-
-        # ----------------------------
-        # Fandoms
-        # ----------------------------
-
+        # Fetch associated fandom tags
         fandom_query = """
         SELECT
             fj.fic_id,
@@ -87,20 +65,12 @@ class Recommender:
         """
 
         with self.connection.cursor() as cur:
-
-            cur.execute(
-                fandom_query,
-                (fic_ids,)
-            )
+            cur.execute(fandom_query, (fic_ids,))
 
             for fic_id, fandom in cur.fetchall():
-
                 metadata[fic_id]["fandoms"].add(fandom)
 
-        # ----------------------------
-        # Relationships
-        # ----------------------------
-
+        # Fetch associated relationship tags
         relationship_query = """
         SELECT
             rj.fic_id,
@@ -112,14 +82,9 @@ class Recommender:
         """
 
         with self.connection.cursor() as cur:
-
-            cur.execute(
-                relationship_query,
-                (fic_ids,)
-            )
+            cur.execute(relationship_query, (fic_ids,))
 
             for fic_id, relationship in cur.fetchall():
-
                 metadata[fic_id]["relationships"].add(relationship)
 
         return metadata
@@ -130,28 +95,17 @@ class Recommender:
         top_k: int = 10,
         retrieval_size: int = 100,
     ) -> list[tuple[int, float]]:
+        """Generate top-K recommended works using cosine embedding similarity and hybrid weighted ranking."""
+        query_embedding = self.embedding_store.get_embedding(fic_id)
+        candidate_ids, candidate_embeddings = self.embedding_store.get_all_embeddings()
 
-        query_embedding = (self.embedding_store.get_embedding(fic_id))
-
-        candidate_ids, candidate_embeddings = (self.embedding_store.get_all_embeddings())
-
-        similarities = (
-            compute_cosine_similarity(
-                query_embedding,
-                candidate_embeddings,
-            )
-        )
-
+        similarities = compute_cosine_similarity(query_embedding, candidate_embeddings)
         sorted_indices = np.argsort(similarities)[::-1]
 
-        # ---------------------------------
-        # Retrieval Stage
-        # ---------------------------------
-
+        # Stage 1: Vector Similarity Retrieval
         retrieved_candidate_ids = []
 
         for index in sorted_indices:
-
             candidate_id = int(candidate_ids[index])
 
             if candidate_id == fic_id:
@@ -162,68 +116,33 @@ class Recommender:
             if len(retrieved_candidate_ids) >= retrieval_size:
                 break
 
-        # ---------------------------------
-        # Metadata Stage
-        # ---------------------------------
-
-        metadata = (self._get_batch_metadata([fic_id] + retrieved_candidate_ids))
-
+        # Stage 2: Metadata Fetching
+        metadata = self._get_batch_metadata([fic_id] + retrieved_candidate_ids)
         query_metadata = metadata[fic_id]
+        max_kudos, max_bookmarks = self._get_max_popularity()
 
-        max_kudos, max_bookmarks = (self._get_max_popularity())
-
-        # ---------------------------------
-        # Ranking Stage
-        # ---------------------------------
-
+        # Stage 3: Hybrid Score Ranking
         recommendations = []
+        similarity_lookup = {int(candidate_ids[index]): similarities[index] for index in sorted_indices}
 
-        similarity_lookup = {
-            int(candidate_ids[index]): similarities[index] for index in sorted_indices
-        }
+        for candidate_id in retrieved_candidate_ids:
+            candidate_metadata = metadata[candidate_id]
 
-        for candidate_id in (retrieved_candidate_ids):
+            normalized_kudos = min_max_normalize(candidate_metadata["kudos"], 0, max_kudos)
+            normalized_bookmarks = min_max_normalize(candidate_metadata["bookmarks"], 0, max_bookmarks)
 
-            candidate_metadata = (metadata[candidate_id])
-
-            normalized_kudos = (
-                min_max_normalize(
-                    candidate_metadata["kudos"],
-                    0,
-                    max_kudos,
-                )
+            score = compute_final_score(
+                embedding_similarity=similarity_lookup[candidate_id],
+                query_fandoms=query_metadata["fandoms"],
+                candidate_fandoms=candidate_metadata["fandoms"],
+                query_relationships=query_metadata["relationships"],
+                candidate_relationships=candidate_metadata["relationships"],
+                normalized_kudos=normalized_kudos,
+                normalized_bookmarks=normalized_bookmarks,
             )
 
-            normalized_bookmarks = (
-                min_max_normalize(
-                    candidate_metadata["bookmarks"],
-                    0,
-                    max_bookmarks,
-                )
-            )
+            recommendations.append((candidate_id, score))
 
-            score = (
-                compute_final_score(
-                    embedding_similarity = similarity_lookup[candidate_id],
-                    query_fandoms = query_metadata["fandoms"],
-                    candidate_fandoms = candidate_metadata["fandoms"],
-                    query_relationships = query_metadata["relationships"],
-                    candidate_relationships = candidate_metadata["relationships"],
-                    normalized_kudos = normalized_kudos,
-                    normalized_bookmarks = normalized_bookmarks,
-                )
-            )
-
-            recommendations.append(
-                (
-                    candidate_id,
-                    score,
-                )
-            )
-
-        recommendations.sort(
-            key=lambda x: x[1],
-            reverse=True,
-        )
+        recommendations.sort(key=lambda x: x[1], reverse=True)
 
         return recommendations[:top_k]

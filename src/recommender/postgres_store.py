@@ -7,12 +7,10 @@ from src.recommender.embedding_store import EmbeddingStore
 
 
 class PostgresEmbeddingStore(EmbeddingStore):
+    """PostgreSQL-backed storage implementation for vector embeddings using bytea payload storage."""
 
-    def _get_store_metadata(
-        self,
-        connection,
-    ) -> tuple[str, int] | None:
-
+    def _get_store_metadata(self, connection) -> tuple[str, int] | None:
+        """Fetch model metadata from existing embeddings in the database."""
         query = """
         SELECT
             model_name,
@@ -28,102 +26,48 @@ class PostgresEmbeddingStore(EmbeddingStore):
         if row is None:
             return None
 
-        return (
-            row[0],
-            row[1],
-        )
+        return row[0], row[1]
 
-
-    def _validate_embedding(
-        self,
-        connection,
-        embedding: np.ndarray,
-        model_name: str,
-    ) -> np.ndarray:
-
-        embedding = np.asarray(
-            embedding,
-            dtype=np.float32,
-        )
+    def _validate_embedding(self, connection, embedding: np.ndarray, model_name: str) -> np.ndarray:
+        """Validate embedding dimensions and model compatibility against stored metadata."""
+        embedding = np.asarray(embedding, dtype=np.float32)
 
         if embedding.ndim != 1:
-            raise ValueError(
-                "Embedding must be a "
-                "one-dimensional array."
-            )
+            raise ValueError("Embedding must be a one-dimensional array.")
 
-        metadata = self._get_store_metadata(
-            connection
-        )
+        metadata = self._get_store_metadata(connection)
 
         if metadata is None:
             return embedding
 
-        stored_model_name, stored_dimension = (
-            metadata
-        )
+        stored_model_name, stored_dimension = metadata
 
         if model_name != stored_model_name:
-            raise ValueError(
-                f"Expected model "
-                f"{stored_model_name} "
-                f"but received "
-                f"{model_name}"
-            )
+            raise ValueError(f"Expected model {stored_model_name} but received {model_name}")
 
         if len(embedding) != stored_dimension:
-            raise ValueError(
-                f"Expected embedding dimension "
-                f"{stored_dimension} "
-                f"but received "
-                f"{len(embedding)}"
-            )
+            raise ValueError(f"Expected embedding dimension {stored_dimension} but received {len(embedding)}")
 
         return embedding
 
-
-    def get_embedding(
-        self,
-        fic_id: int,
-    ) -> np.ndarray:
-
-        query = """
-        SELECT payload
-        FROM embeddings
-        WHERE fic_id = %s
-        """
+    def get_embedding(self, fic_id: int) -> np.ndarray:
+        """Retrieve and deserialize vector embedding for a single fic ID."""
+        query = "SELECT payload FROM embeddings WHERE fic_id = %s"
 
         with get_connection() as connection:
-
             with connection.cursor() as cur:
-                cur.execute(
-                    query,
-                    (fic_id,),
-                )
-
+                cur.execute(query, (fic_id,))
                 row = cur.fetchone()
 
         if row is None:
-            raise KeyError(
-                f"Embedding for "
-                f"fic_id={fic_id} "
-                f"does not exist."
-            )
+            raise KeyError(f"Embedding for fic_id={fic_id} does not exist.")
 
-        embedding = pickle.loads(
-            bytes(row[0])
-        )
+        embedding = pickle.loads(bytes(row[0]))
 
-        return np.asarray(
-            embedding,
-            dtype=np.float32,
-        )
+        return np.asarray(embedding, dtype=np.float32)
 
-
-    def get_all_embeddings(
-        self,
-    ) -> tuple[np.ndarray, np.ndarray]:
-
+    def get_all_embeddings(self) -> tuple[np.ndarray, np.ndarray]:
+        """Retrieve all stored fic IDs and vector embeddings matrix from database."""
         query = """
         SELECT
             fic_id,
@@ -133,56 +77,20 @@ class PostgresEmbeddingStore(EmbeddingStore):
         """
 
         with get_connection() as connection:
-
             with connection.cursor() as cur:
                 cur.execute(query)
                 rows = cur.fetchall()
 
         if not rows:
-            return (
-                np.array(
-                    [],
-                    dtype=np.int64,
-                ),
-                np.empty(
-                    (0, 0),
-                    dtype=np.float32,
-                ),
-            )
+            return np.array([], dtype=np.int64), np.empty((0, 0), dtype=np.float32)
 
-        fic_ids = np.array(
-            [
-                row[0]
-                for row in rows
-            ],
-            dtype=np.int64,
-        )
+        fic_ids = np.array([row[0] for row in rows], dtype=np.int64)
+        embeddings = np.stack([np.asarray(pickle.loads(bytes(row[1])), dtype=np.float32) for row in rows])
 
-        embeddings = np.stack(
-            [
-                np.asarray(
-                    pickle.loads(
-                        bytes(row[1])
-                    ),
-                    dtype=np.float32,
-                )
-                for row in rows
-            ]
-        )
+        return fic_ids, embeddings
 
-        return (
-            fic_ids,
-            embeddings,
-        )
-
-
-    def save_embedding(
-        self,
-        fic_id: int,
-        embedding: np.ndarray,
-        model_name: str,
-    ) -> None:
-
+    def save_embedding(self, fic_id: int, embedding: np.ndarray, model_name: str) -> None:
+        """Upsert a single fic embedding vector into PostgreSQL database."""
         query = """
         INSERT INTO embeddings (
             fic_id,
@@ -190,37 +98,17 @@ class PostgresEmbeddingStore(EmbeddingStore):
             embedding_dimension,
             payload
         )
-        VALUES (
-            %s,
-            %s,
-            %s,
-            %s
-        )
-
+        VALUES (%s, %s, %s, %s)
         ON CONFLICT (fic_id)
         DO UPDATE SET
-            model_name =
-                EXCLUDED.model_name,
-            embedding_dimension =
-                EXCLUDED.embedding_dimension,
-            payload =
-                EXCLUDED.payload
+            model_name = EXCLUDED.model_name,
+            embedding_dimension = EXCLUDED.embedding_dimension,
+            payload = EXCLUDED.payload
         """
 
         with get_connection() as connection:
-
-            embedding = (
-                self._validate_embedding(
-                    connection,
-                    embedding,
-                    model_name,
-                )
-            )
-
-            payload = pickle.dumps(
-                embedding,
-                protocol=pickle.HIGHEST_PROTOCOL,
-            )
+            embedding = self._validate_embedding(connection, embedding, model_name)
+            payload = pickle.dumps(embedding, protocol=pickle.HIGHEST_PROTOCOL)
 
             with connection.cursor() as cur:
                 cur.execute(
@@ -235,43 +123,19 @@ class PostgresEmbeddingStore(EmbeddingStore):
 
             connection.commit()
 
-
-    def save_embeddings(
-        self,
-        fic_ids: np.ndarray,
-        embeddings: np.ndarray,
-        model_name: str,
-    ) -> None:
-
-        fic_ids = np.asarray(
-            fic_ids,
-            dtype=np.int64,
-        )
-
-        embeddings = np.asarray(
-            embeddings,
-            dtype=np.float32,
-        )
+    def save_embeddings(self, fic_ids: np.ndarray, embeddings: np.ndarray, model_name: str) -> None:
+        """Batch upsert multiple fic embedding vectors into PostgreSQL database."""
+        fic_ids = np.asarray(fic_ids, dtype=np.int64)
+        embeddings = np.asarray(embeddings, dtype=np.float32)
 
         if fic_ids.ndim != 1:
-            raise ValueError(
-                "Fic IDs must be a "
-                "one-dimensional array."
-            )
+            raise ValueError("Fic IDs must be a one-dimensional array.")
 
         if embeddings.ndim != 2:
-            raise ValueError(
-                "Embeddings must be a "
-                "two-dimensional array."
-            )
+            raise ValueError("Embeddings must be a two-dimensional array.")
 
-        if len(fic_ids) != len(
-            embeddings
-        ):
-            raise ValueError(
-                "Number of fic ids and "
-                "embeddings do not match."
-            )
+        if len(fic_ids) != len(embeddings):
+            raise ValueError("Number of fic ids and embeddings do not match.")
 
         if len(fic_ids) == 0:
             return
@@ -283,58 +147,28 @@ class PostgresEmbeddingStore(EmbeddingStore):
             embedding_dimension,
             payload
         )
-        VALUES (
-            %s,
-            %s,
-            %s,
-            %s
-        )
-
+        VALUES (%s, %s, %s, %s)
         ON CONFLICT (fic_id)
         DO UPDATE SET
-            model_name =
-                EXCLUDED.model_name,
-            embedding_dimension =
-                EXCLUDED.embedding_dimension,
-            payload =
-                EXCLUDED.payload
+            model_name = EXCLUDED.model_name,
+            embedding_dimension = EXCLUDED.embedding_dimension,
+            payload = EXCLUDED.payload
         """
 
-        embedding_dimension = (
-            embeddings.shape[1]
-        )
+        embedding_dimension = embeddings.shape[1]
 
         with get_connection() as connection:
-
-            metadata = (
-                self._get_store_metadata(
-                    connection
-                )
-            )
+            metadata = self._get_store_metadata(connection)
 
             if metadata is not None:
-
-                stored_model_name, stored_dimension = (
-                    metadata
-                )
+                stored_model_name, stored_dimension = metadata
 
                 if model_name != stored_model_name:
-                    raise ValueError(
-                        f"Expected model "
-                        f"{stored_model_name} "
-                        f"but received "
-                        f"{model_name}"
-                    )
+                    raise ValueError(f"Expected model {stored_model_name} but received {model_name}")
 
-                if (
-                    embedding_dimension
-                    != stored_dimension
-                ):
+                if embedding_dimension != stored_dimension:
                     raise ValueError(
-                        f"Expected embedding dimension "
-                        f"{stored_dimension} "
-                        f"but received "
-                        f"{embedding_dimension}"
+                        f"Expected embedding dimension {stored_dimension} but received {embedding_dimension}"
                     )
 
             rows = [
@@ -342,23 +176,12 @@ class PostgresEmbeddingStore(EmbeddingStore):
                     int(fic_id),
                     model_name,
                     embedding_dimension,
-                    pickle.dumps(
-                        embedding,
-                        protocol=
-                            pickle.HIGHEST_PROTOCOL,
-                    ),
+                    pickle.dumps(embedding, protocol=pickle.HIGHEST_PROTOCOL),
                 )
-                for fic_id, embedding
-                in zip(
-                    fic_ids,
-                    embeddings,
-                )
+                for fic_id, embedding in zip(fic_ids, embeddings)
             ]
 
             with connection.cursor() as cur:
-                cur.executemany(
-                    query,
-                    rows,
-                )
+                cur.executemany(query, rows)
 
             connection.commit()
